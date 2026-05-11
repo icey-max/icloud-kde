@@ -1,6 +1,6 @@
 import QtQuick
+import QtQuick.Controls as Controls
 import QtQuick.Layouts
-import org.kde.kirigami as Kirigami
 import org.kde.kcmutils as KCM
 import org.kde.icloudkde 1.0
 
@@ -8,33 +8,50 @@ KCM.SimpleKCM {
     id: root
 
     DaemonClient {
-        id: daemonClient
+        id: daemon
     }
 
-    Kirigami.PageRow {
+    ColumnLayout {
         anchors.fill: parent
-        globalToolBar.style: Kirigami.ApplicationHeaderStyle.None
 
-        initialPage: AccountPage {
-            daemonClient: daemonClient
-        }
+        Controls.TabBar {
+            id: pageTabs
+            Layout.fillWidth: true
 
-        Component.onCompleted: {
-            push(syncPage)
-            push(recoveryPage)
-        }
+            Controls.TabButton {
+                text: "Account"
+            }
 
-        Component {
-            id: syncPage
-            SyncPage {
-                daemonClient: daemonClient
+            Controls.TabButton {
+                text: "Sync"
+            }
+
+            Controls.TabButton {
+                text: "Recovery"
             }
         }
 
-        Component {
-            id: recoveryPage
+        StackLayout {
+            currentIndex: pageTabs.currentIndex
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+
+            AccountPage {
+                daemonClient: daemon
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+            }
+
+            SyncPage {
+                daemonClient: daemon
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+            }
+
             RecoveryPage {
-                daemonClient: daemonClient
+                daemonClient: daemon
+                Layout.fillWidth: true
+                Layout.fillHeight: true
             }
         }
     }

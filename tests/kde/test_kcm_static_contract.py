@@ -19,7 +19,7 @@ class KCMStaticContractTests(unittest.TestCase):
     def test_kcm_metadata_declares_icloud_module(self) -> None:
         metadata = json.loads(self._read("kde/kcm/kcm_icloud.json"))
 
-        self.assertEqual(metadata["KPlugin"]["Id"], "kcm_icloud")
+        self.assertNotIn("Id", metadata["KPlugin"])
         self.assertEqual(metadata["KPlugin"]["Name"], "iCloud Drive")
         self.assertEqual(metadata["KPlugin"]["Icon"], "folder-cloud")
         self.assertIn("icloud,drive,sync,apple,kwallet", metadata["X-KDE-Keywords"])
@@ -80,6 +80,7 @@ class KCMStaticContractTests(unittest.TestCase):
             "submitTwoFactorCode",
             "sendTwoStepCode",
             "submitTwoStepCode",
+            "daemonClient.authStatus.message || \"\"",
         ]:
             self.assertIn(expected, account)
         for state in [
@@ -96,6 +97,22 @@ class KCMStaticContractTests(unittest.TestCase):
             "error",
         ]:
             self.assertIn(state, account)
+
+    def test_kcm_starts_on_account_page_and_passes_daemon_client(self) -> None:
+        main = self._read("kde/kcm/ui/main.qml")
+
+        account_index = main.index("AccountPage")
+        sync_index = main.index("SyncPage")
+        recovery_index = main.index("RecoveryPage")
+
+        self.assertLess(account_index, sync_index)
+        self.assertLess(sync_index, recovery_index)
+        self.assertIn("id: daemon", main)
+        self.assertIn("currentIndex: pageTabs.currentIndex", main)
+        self.assertNotIn("initialPage:", main)
+        self.assertNotIn("push(syncPage)", main)
+        self.assertNotIn("push(recoveryPage)", main)
+        self.assertEqual(main.count("daemonClient: daemon"), 3)
 
     def test_sync_page_bounds_concurrency_to_safe_defaults(self) -> None:
         sync = self._read("kde/kcm/ui/SyncPage.qml")

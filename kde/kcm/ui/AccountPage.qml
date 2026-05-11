@@ -118,7 +118,7 @@ Kirigami.ScrollablePage {
 
         Kirigami.InlineMessage {
             visible: daemonClient.authStatus.state === "web_access_blocked" || daemonClient.authStatus.state === "account_blocked" || daemonClient.authStatus.state === "auth_required"
-            text: daemonClient.authStatus.message
+            text: daemonClient.authStatus.message || ""
             type: Kirigami.MessageType.Error
             Layout.fillWidth: true
         }

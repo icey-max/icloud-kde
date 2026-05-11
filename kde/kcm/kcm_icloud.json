@@ -1,6 +1,5 @@
 {
   "KPlugin": {
-    "Id": "kcm_icloud",
     "Name": "iCloud Drive",
     "Description": "Configure iCloud Drive sync",
     "Icon": "folder-cloud",
