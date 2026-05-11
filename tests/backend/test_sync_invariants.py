@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import errno
 import os
 import shutil
+import stat
 import tempfile
 import unittest
 from unittest.mock import Mock
@@ -32,6 +34,14 @@ class SyncInvariantTests(unittest.TestCase):
         filesystem.sync_engine = self.engine
         filesystem.logger = Mock()
         return filesystem
+
+    def test_mknod_rejects_non_regular_special_files(self) -> None:
+        filesystem = self._filesystem()
+
+        result = filesystem.mknod("/fifo", stat.S_IFIFO, 0)
+
+        self.assertEqual(result, -errno.ENOSYS)
+        self.assertFalse(self.mirror.exists("/fifo"))
 
     def test_conflict_copy_clears_remote_identity_and_stays_dirty(self) -> None:
         self.state.upsert_entry(
