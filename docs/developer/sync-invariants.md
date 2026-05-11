@@ -62,6 +62,14 @@ Shared metadata, including share ids, must round-trip through sync state and
 adapter DTOs. Shared item identity is part of backend compatibility because
 the inherited engine reconstructs backend nodes from persisted metadata.
 
+## Filesystem Semantics
+
+The user-visible sync root supports ordinary regular files and folders in v1.
+Unsupported Unix semantics such as symlinks, sockets, devices, FIFOs, ownership,
+ACLs, xattrs, and full mode fidelity are defined in
+[filesystem-semantics.md](filesystem-semantics.md). Unsupported local entries
+must be rejected by the filesystem layer or surfaced as daemon problem items.
+
 ## Fixture Policy
 
 Fixtures must be sanitized. In operational terms, fixtures must be sanitized.
