@@ -42,6 +42,13 @@ Crash-recovery-relevant state lives in the SQLite sync state and local mirror.
 Future refactors should preserve durable identity, dirty, tombstone, hydrated,
 local checksum, and synced-path semantics.
 
+## Local Rename Tracking
+
+Local renames keep the previous synced path and mark the renamed root entry
+dirty. This gives the upload/reconcile path enough information to perform a
+backend rename or preserve the local change instead of treating the renamed
+file as unrelated content.
+
 ## Remote Delete Of Dirty Local Content
 
 If remote metadata no longer contains an item while the local entry is dirty,

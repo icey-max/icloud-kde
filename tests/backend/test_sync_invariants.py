@@ -25,6 +25,14 @@ class SyncInvariantTests(unittest.TestCase):
         self.engine.shutdown()
         shutil.rmtree(self.root)
 
+    def _filesystem(self):
+        filesystem = self.driver.ICloudFS()
+        filesystem.mirror = self.mirror
+        filesystem.state = self.state
+        filesystem.sync_engine = self.engine
+        filesystem.logger = Mock()
+        return filesystem
+
     def test_conflict_copy_clears_remote_identity_and_stays_dirty(self) -> None:
         self.state.upsert_entry(
             {
@@ -105,6 +113,97 @@ class SyncInvariantTests(unittest.TestCase):
         self.assertEqual(entry["dirty"], 1)
         self.assertEqual(entry["tombstone"], 0)
 
+    def test_open_hydrates_unhydrated_clean_file(self) -> None:
+        self.state.upsert_entry(
+            {
+                "path": "/docs/a.txt",
+                "type": "file",
+                "parent_path": "/docs",
+                "remote_drivewsid": "file-1",
+                "remote_docwsid": "doc-1",
+                "remote_etag": "etag-1",
+                "remote_zone": "zone-1",
+                "size": 4,
+                "mtime": 123,
+                "hydrated": False,
+                "dirty": False,
+                "tombstone": False,
+                "synced_path": "/docs/a.txt",
+            }
+        )
+        filesystem = self._filesystem()
+        self.engine.ensure_local_file = Mock()
+
+        result = filesystem.open("/docs/a.txt", os.O_RDONLY)
+
+        self.assertEqual(result, 0)
+        self.engine.ensure_local_file.assert_called_once_with("/docs/a.txt")
+
+    def test_local_rename_preserves_synced_path_and_marks_dirty(self) -> None:
+        self.mirror.ensure_dir("/docs")
+        self.mirror.write_atomic_bytes("/docs/a.txt", b"content", 123)
+        self.state.upsert_entry(
+            {
+                "path": "/docs/a.txt",
+                "type": "file",
+                "parent_path": "/docs",
+                "remote_drivewsid": "file-1",
+                "remote_docwsid": "doc-1",
+                "remote_etag": "etag-1",
+                "remote_zone": "zone-1",
+                "size": 7,
+                "mtime": 123,
+                "hydrated": True,
+                "dirty": False,
+                "tombstone": False,
+                "synced_path": "/docs/a.txt",
+            }
+        )
+        filesystem = self._filesystem()
+
+        result = filesystem.rename("/docs/a.txt", "/docs/b.txt")
+
+        renamed = self.state.get_entry("/docs/b.txt")
+        self.assertEqual(result, 0)
+        self.assertIsNotNone(renamed)
+        self.assertEqual(renamed["dirty"], 1)
+        self.assertEqual(renamed["synced_path"], "/docs/a.txt")
+        self.assertTrue(self.mirror.exists("/docs/b.txt"))
+        self.assertFalse(self.mirror.exists("/docs/a.txt"))
+
+    def test_start_uses_persistent_cache_without_initial_scan(self) -> None:
+        self.state.upsert_entry(
+            {
+                "path": "/docs",
+                "type": "folder",
+                "parent_path": "/",
+                "hydrated": True,
+                "dirty": False,
+                "tombstone": False,
+                "synced_path": "/docs",
+            }
+        )
+        engine = self.driver.ICloudSyncEngine(
+            Mock(),
+            self.mirror,
+            self.state,
+            Mock(),
+        )
+        engine.initial_scan = Mock()
+        engine._reconcile_persistent_cache = Mock()
+        engine._schedule_all_unhydrated = Mock()
+        engine._start_background_threads = Mock()
+
+        try:
+            engine.start()
+
+            engine.initial_scan.assert_not_called()
+            engine._reconcile_persistent_cache.assert_called_once()
+            engine._schedule_all_unhydrated.assert_called_once()
+            engine._start_background_threads.assert_called_once()
+        finally:
+            engine.shutdown()
+
     def test_retry_backoff_is_exponential_and_capped(self) -> None:
         self.assertEqual(self.engine._retry_delay_for_attempt(1), 5)
         self.assertEqual(self.engine._retry_delay_for_attempt(2), 10)
@@ -154,4 +253,3 @@ class SyncInvariantTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
