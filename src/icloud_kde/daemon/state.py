@@ -130,9 +130,10 @@ def item_status_from_entry(
     syncing_paths: set[str] | None = None,
     conflict_paths: set[str] | None = None,
     unsupported_paths: set[str] | None = None,
+    requested_path: str = "",
 ) -> ItemStatus:
     if entry is None:
-        return ItemStatus(path="", state=ItemState.ERROR, message="item not found")
+        return ItemStatus(path=requested_path, state=ItemState.ERROR, message="item not found")
     return ItemStatus(
         path=str(entry.get("path", "")),
         state=item_state_from_entry(

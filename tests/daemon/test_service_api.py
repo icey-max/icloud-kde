@@ -92,6 +92,16 @@ class DaemonServiceApiTests(unittest.TestCase):
             self.assertIsInstance(status, dict)
             self.assertNotIn("_runtime", status)
 
+    def test_missing_item_state_includes_requested_path(self) -> None:
+        with TemporaryDirectory() as tmp:
+            service = self._service(Path(tmp))
+
+            state = service.get_item_state("/missing.txt")
+
+            self.assertEqual(state["path"], "/missing.txt")
+            self.assertEqual(state["state"], "error")
+            self.assertEqual(state["message"], "item not found")
+
     def test_pause_resume_are_safe_controls(self) -> None:
         with TemporaryDirectory() as tmp:
             service = self._service(Path(tmp))

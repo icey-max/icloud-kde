@@ -97,6 +97,7 @@ class DaemonService:
             syncing_paths=self.syncing_paths,
             conflict_paths=self.conflict_paths,
             unsupported_paths=self.unsupported_paths,
+            requested_path=path,
         ).to_dict()
 
     def list_problem_items(self) -> list[dict[str, object]]:
