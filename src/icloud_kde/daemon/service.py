@@ -6,6 +6,7 @@ from dataclasses import replace
 from typing import Any, Mapping, Protocol
 
 from .config import DaemonConfig, validate_sync_root
+from .filesystem import scan_unsupported_entries
 from .lifecycle import DaemonLifecycle
 from .state import (
     ItemState,
@@ -17,6 +18,8 @@ from .state import (
     ServiceStatus,
     item_status_from_entry,
 )
+
+UNSUPPORTED_FILE_TYPE_KIND = "unsupported_file_type"
 
 
 class StateRepository(Protocol):
@@ -108,6 +111,19 @@ class DaemonService:
                         severity=ProblemSeverity.INFO,
                         state=ItemState.DIRTY,
                         message="Local change is waiting to sync.",
+                    )
+                )
+
+        lifecycle_status = self.lifecycle.status()
+        if lifecycle_status.sync_root:
+            for entry in scan_unsupported_entries(lifecycle_status.sync_root):
+                problems.append(
+                    ProblemItem(
+                        path=entry.path,
+                        kind=ProblemKind(UNSUPPORTED_FILE_TYPE_KIND),
+                        severity=ProblemSeverity.WARNING,
+                        state=ItemState.UNSUPPORTED,
+                        message=entry.reason or f"Unsupported file type: {entry.file_type}",
                     )
                 )
 

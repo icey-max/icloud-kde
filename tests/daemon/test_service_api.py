@@ -133,6 +133,25 @@ class DaemonServiceApiTests(unittest.TestCase):
             & names
         )
 
+    def test_list_problem_items_reports_unsupported_filesystem_entries(self) -> None:
+        with TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            service = self._service(base)
+            target = base / "target.txt"
+            target.write_text("target", encoding="utf-8")
+            (base / "iCloud" / "link").symlink_to(target)
+
+            problems = service.list_problem_items()
+
+            unsupported = [
+                problem for problem in problems if problem["kind"] == "unsupported_file_type"
+            ]
+            self.assertEqual(len(unsupported), 1)
+            self.assertEqual(unsupported[0]["path"], "/link")
+            self.assertEqual(unsupported[0]["severity"], "warning")
+            self.assertEqual(unsupported[0]["state"], "unsupported")
+            self.assertTrue(unsupported[0]["message"])
+
 
 if __name__ == "__main__":
     unittest.main()
