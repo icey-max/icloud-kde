@@ -142,12 +142,10 @@ class DaemonService:
 
     def pause(self) -> dict[str, object]:
         self.lifecycle.pause()
-        self.service_state = ServiceState.PAUSED
         return self.get_status()
 
     def resume(self) -> dict[str, object]:
         self.lifecycle.resume()
-        self.service_state = ServiceState.IDLE
         return self.get_status()
 
     def request_sync(self) -> dict[str, object]:

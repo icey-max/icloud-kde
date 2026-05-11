@@ -15,6 +15,7 @@ if str(SRC) not in sys.path:
 from icloud_kde.daemon.config import DaemonConfig, PathValidationError  # noqa: E402
 from icloud_kde.daemon.lifecycle import DaemonLifecycle  # noqa: E402
 from icloud_kde.daemon.service import DaemonService  # noqa: E402
+from icloud_kde.daemon.state import ServiceState  # noqa: E402
 
 
 class FakeRuntimeFactory:
@@ -102,6 +103,17 @@ class DaemonServiceApiTests(unittest.TestCase):
             self.assertTrue(paused["paused"])
             self.assertEqual(resumed["state"], "idle")
             self.assertFalse(resumed["paused"])
+
+    def test_resume_preserves_underlying_blocker_state(self) -> None:
+        with TemporaryDirectory() as tmp:
+            service = self._service(Path(tmp))
+            service.service_state = ServiceState.AUTH_REQUIRED
+
+            paused = service.pause()
+            resumed = service.resume()
+
+            self.assertEqual(paused["state"], "paused")
+            self.assertEqual(resumed["state"], "auth_required")
 
     def test_set_sync_root_validates_path(self) -> None:
         with TemporaryDirectory() as tmp:
