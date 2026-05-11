@@ -62,6 +62,75 @@ class KCMStaticContractTests(unittest.TestCase):
         self.assertIn("class ICloudConfigModule", header)
         self.assertIn('K_PLUGIN_CLASS_WITH_JSON(ICloudConfigModule, "kcm_icloud.json")', source)
 
+    def test_account_page_contains_required_auth_states_and_copy(self) -> None:
+        main = self._read("kde/kcm/ui/main.qml")
+        account = self._read("kde/kcm/ui/AccountPage.qml")
+
+        for page_name in ["AccountPage", "SyncPage", "RecoveryPage"]:
+            self.assertIn(page_name, main)
+        for expected in [
+            "iCloud Drive is not connected",
+            "Connect your Apple ID to choose a local sync folder and start syncing.",
+            "Connect iCloud Drive",
+            "iCloud needs attention. Review the account message, then reconnect or update recovery settings.",
+            "Two-factor verification code",
+            "Trusted device",
+            "Reconnect",
+            "beginSignIn",
+            "submitTwoFactorCode",
+            "sendTwoStepCode",
+            "submitTwoStepCode",
+        ]:
+            self.assertIn(expected, account)
+        for state in [
+            "signed_out",
+            "needs_password",
+            "authenticating",
+            "needs_2fa",
+            "needs_2sa_device",
+            "needs_2sa_code",
+            "trusted",
+            "auth_required",
+            "web_access_blocked",
+            "account_blocked",
+            "error",
+        ]:
+            self.assertIn(state, account)
+
+    def test_sync_page_bounds_concurrency_to_safe_defaults(self) -> None:
+        sync = self._read("kde/kcm/ui/SyncPage.qml")
+
+        for expected in [
+            "Sync root",
+            "Cache location",
+            "id: syncRoot",
+            "id: cacheLocation",
+            "id: startupBehavior",
+            "id: warmupMode",
+            "background",
+            "lazy",
+            "from: 1",
+            "to: 3",
+            "value: 1",
+            "id: pauseOnStartup",
+        ]:
+            self.assertIn(expected, sync)
+
+    def test_recovery_page_contains_required_actions_and_limitations(self) -> None:
+        recovery = self._read("kde/kcm/ui/RecoveryPage.qml")
+
+        for expected in [
+            "Request re-authentication",
+            "Reveal local folder",
+            "Collect logs",
+            "Rebuild cache",
+            "Rebuild cache: Move the internal cache to a backup and rebuild it. Local files in the sync folder are not deleted.",
+            "iCloud web access or account security settings can block Linux access.",
+            "Advanced Data Protection may limit what this integration can read.",
+            "Credentials and session material are stored in KWallet or a compatible secret-service backend, not plaintext project config.",
+        ]:
+            self.assertIn(expected, recovery)
+
 
 if __name__ == "__main__":
     unittest.main()
