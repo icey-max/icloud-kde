@@ -79,13 +79,13 @@ raw password argument.
 
 ## Safe Controls Only
 
-Phase 2 exposes only status queries and non-destructive controls: pause,
-resume, sync request, hydration request, problem listing, config read, and sync
-root update after validation.
+The daemon exposes status queries, non-destructive sync controls, and explicit
+recovery actions. Cache rebuild is permitted only through `RebuildCache` with a
+confirmation token; it moves the internal cache to a backup and must not delete
+local files in the sync root.
 
-Remote removal, local purge, cache rebuild, account reset, force overwrite, and
-conflict resolution are recovery features for later UI phases. They are not part
-of this D-Bus contract.
+Remote removal, local purge, account reset, force overwrite, and conflict
+resolution are not part of this D-Bus contract.
 
 ## Boundary Rules
 

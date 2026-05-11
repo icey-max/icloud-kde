@@ -177,6 +177,22 @@ class KCMStaticContractTests(unittest.TestCase):
         ]:
             self.assertIn(expected, recovery)
 
+    def test_user_setup_doc_contains_kcm_command_and_limitations(self) -> None:
+        setup = self._read("docs/user/setup.md")
+
+        for expected in [
+            "## Open the iCloud Drive settings module",
+            "## Connect your Apple ID",
+            "## Choose sync locations",
+            "## Recover from common problems",
+            "## Privacy and security limits",
+            "kcmshell6 kcm_icloud",
+            "KWallet",
+            "Advanced Data Protection",
+            "not plaintext project config",
+        ]:
+            self.assertIn(expected, setup)
+
 
 if __name__ == "__main__":
     unittest.main()
