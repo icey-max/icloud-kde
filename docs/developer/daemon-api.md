@@ -25,12 +25,31 @@ clients can consume the same contract.
 - `GetConfig() -> a{sv}`
 - `SetSyncRoot(s path) -> a{sv}`
 
+## Auth and recovery methods
+
+- `GetAuthStatus() -> a{sv}`
+- `BeginSignIn(s apple_id, s password_secret_ref) -> a{sv}`
+- `SubmitTwoFactorCode(s code) -> a{sv}`
+- `ListTrustedDevices() -> aa{sv}`
+- `SendTwoStepCode(s device_id) -> a{sv}`
+- `SubmitTwoStepCode(s device_id, s code) -> a{sv}`
+- `RequestReauth() -> a{sv}`
+- `CollectLogs(s destination) -> a{sv}`
+- `RebuildCache(s confirm_token) -> a{sv}`
+- `RevealSyncRoot() -> a{sv}`
+
+`BeginSignIn` takes a password secret reference in the exact form
+`org.kde.ICloudDrive:<account_label>:apple_id_password`. It does not accept a
+raw password argument.
+
 ## Signals
 
 - `StatusChanged(a{sv})`
 - `ItemStateChanged(s path, a{sv} state)`
 - `ProgressChanged(a{sv})`
 - `ProblemRaised(a{sv})`
+- `AuthStateChanged(a{sv})`
+- `RecoveryActionCompleted(a{sv})`
 
 ## Service States
 
@@ -60,13 +79,13 @@ clients can consume the same contract.
 
 ## Safe Controls Only
 
-Phase 2 exposes only status queries and non-destructive controls: pause,
-resume, sync request, hydration request, problem listing, config read, and sync
-root update after validation.
+The daemon exposes status queries, non-destructive sync controls, and explicit
+recovery actions. Cache rebuild is permitted only through `RebuildCache` with a
+confirmation token; it moves the internal cache to a backup and must not delete
+local files in the sync root.
 
-Remote removal, local purge, cache rebuild, account reset, force overwrite, and
-conflict resolution are recovery features for later UI phases. They are not part
-of this D-Bus contract.
+Remote removal, local purge, account reset, force overwrite, and conflict
+resolution are not part of this D-Bus contract.
 
 ## Boundary Rules
 

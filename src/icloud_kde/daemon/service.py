@@ -5,9 +5,12 @@ from __future__ import annotations
 from dataclasses import replace
 from typing import Any, Mapping, Protocol
 
+from .auth import AuthController, FakeAuthController
 from .config import DaemonConfig, validate_sync_root
 from .filesystem import scan_unsupported_entries
 from .lifecycle import DaemonLifecycle
+from .recovery import RecoveryController
+from .secrets import DEFAULT_SECRET_SERVICE, SecretKind, SecretRef
 from .state import (
     ItemState,
     ProblemItem,
@@ -67,10 +70,16 @@ class DaemonService:
         conflict_paths: set[str] | None = None,
         unsupported_paths: set[str] | None = None,
         syncing_paths: set[str] | None = None,
+        auth_controller: AuthController | None = None,
+        recovery_controller: RecoveryController | None = None,
     ) -> None:
         self.lifecycle = lifecycle
         self.repository = repository
         self.hydrator = hydrator or NullHydrationController()
+        self.auth_controller = auth_controller or FakeAuthController()
+        self.recovery_controller = recovery_controller or RecoveryController(
+            self.lifecycle.config or DaemonConfig()
+        )
         self.service_state = service_state
         self.conflict_paths = conflict_paths or set()
         self.unsupported_paths = unsupported_paths or set()
@@ -169,3 +178,47 @@ class DaemonService:
         updated = replace(config, sync_root=sync_root)
         self.lifecycle.configure(updated)
         return self.get_config()
+
+    def get_auth_status(self) -> dict[str, object]:
+        return self.auth_controller.get_status().to_dict()
+
+    def begin_sign_in(self, apple_id: str, password_secret_ref: str) -> dict[str, object]:
+        ref = _parse_password_secret_ref(password_secret_ref)
+        return self.auth_controller.begin_sign_in(apple_id, ref).to_dict()
+
+    def submit_two_factor_code(self, code: str) -> dict[str, object]:
+        return self.auth_controller.submit_two_factor_code(code).to_dict()
+
+    def list_trusted_devices(self) -> list[dict[str, object]]:
+        return [device.to_dict() for device in self.auth_controller.list_trusted_devices()]
+
+    def send_two_step_code(self, device_id: str) -> dict[str, object]:
+        return self.auth_controller.send_two_step_code(device_id).to_dict()
+
+    def submit_two_step_code(self, device_id: str, code: str) -> dict[str, object]:
+        return self.auth_controller.submit_two_step_code(device_id, code).to_dict()
+
+    def request_reauth(self) -> dict[str, object]:
+        self.auth_controller.sign_out()
+        return self.recovery_controller.request_reauth().to_dict()
+
+    def collect_logs(self, destination: str) -> dict[str, object]:
+        return self.recovery_controller.collect_logs(destination).to_dict()
+
+    def rebuild_cache(self, confirm_token: str) -> dict[str, object]:
+        return self.recovery_controller.execute_cache_rebuild(confirm_token).to_dict()
+
+    def reveal_sync_root(self) -> dict[str, object]:
+        return self.recovery_controller.reveal_sync_root().to_dict()
+
+
+def _parse_password_secret_ref(value: str) -> SecretRef:
+    parts = value.split(":")
+    if len(parts) != 3:
+        raise ValueError("password_secret_ref must be org.kde.ICloudDrive:<account>:<kind>")
+    service, account_label, kind = parts
+    if service != DEFAULT_SECRET_SERVICE:
+        raise ValueError("password_secret_ref service must be org.kde.ICloudDrive")
+    if kind != SecretKind.APPLE_ID_PASSWORD.value:
+        raise ValueError("password_secret_ref kind must be apple_id_password")
+    return SecretRef(account_label=account_label, kind=SecretKind.APPLE_ID_PASSWORD)

@@ -12,9 +12,12 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
+from icloud_kde.daemon.auth import FakeAuthController  # noqa: E402
 from icloud_kde.daemon.config import DaemonConfig, PathValidationError  # noqa: E402
 from icloud_kde.daemon.lifecycle import DaemonLifecycle  # noqa: E402
+from icloud_kde.daemon.recovery import CACHE_REBUILD_TOKEN, RecoveryController  # noqa: E402
 from icloud_kde.daemon.service import DaemonService  # noqa: E402
+from icloud_kde.daemon.secrets import SecretKind, build_secret_ref  # noqa: E402
 from icloud_kde.daemon.state import ServiceState  # noqa: E402
 
 
@@ -173,6 +176,60 @@ class DaemonServiceApiTests(unittest.TestCase):
             self.assertEqual(unsupported[0]["severity"], "warning")
             self.assertEqual(unsupported[0]["state"], "unsupported")
             self.assertTrue(unsupported[0]["message"])
+
+    def test_auth_methods_use_password_secret_ref(self) -> None:
+        with TemporaryDirectory() as tmp:
+            service = self._service(Path(tmp))
+            service.auth_controller = FakeAuthController(requires_2fa=True)
+            ref = build_secret_ref("default", SecretKind.APPLE_ID_PASSWORD)
+
+            challenge = service.begin_sign_in("jane@example.com", ref.key())
+            trusted = service.submit_two_factor_code("123456")
+
+            self.assertEqual(challenge["state"], "needs_2fa")
+            self.assertEqual(trusted["state"], "trusted")
+            self.assertNotIn("password", str(challenge).lower())
+
+    def test_auth_methods_reject_raw_password_ref(self) -> None:
+        with TemporaryDirectory() as tmp:
+            service = self._service(Path(tmp))
+
+            with self.assertRaises(ValueError):
+                service.begin_sign_in("jane@example.com", "raw-password")
+
+    def test_recovery_methods_cover_reauth_logs_rebuild_and_reveal(self) -> None:
+        with TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            config = DaemonConfig(
+                sync_root=base / "iCloud",
+                cache_dir=base / ".cache" / "icloud-kde",
+            )
+            config.sync_root.mkdir(parents=True)
+            (config.sync_root / "document.txt").write_text("local", encoding="utf-8")
+            config.cache_dir.mkdir(parents=True)
+            (config.cache_dir / "state.db").write_text("cache", encoding="utf-8")
+            log = base / "daemon.log"
+            log.write_text("log", encoding="utf-8")
+            lifecycle = DaemonLifecycle(FakeRuntimeFactory())
+            lifecycle.configure(config)
+            service = DaemonService(
+                lifecycle,
+                FakeRepository(),
+                FakeHydrator(),
+                recovery_controller=RecoveryController(config, [log]),
+            )
+
+            reauth = service.request_reauth()
+            logs = service.collect_logs(str(base / "logs"))
+            reveal = service.reveal_sync_root()
+            rebuilt = service.rebuild_cache(CACHE_REBUILD_TOKEN)
+
+            self.assertEqual(reauth["action"], "request_reauth")
+            self.assertTrue((base / "logs" / "daemon.log").exists())
+            self.assertEqual(logs["action"], "collect_logs")
+            self.assertEqual(reveal["path"], str(config.sync_root))
+            self.assertEqual(rebuilt["action"], "rebuild_cache")
+            self.assertEqual((config.sync_root / "document.txt").read_text(encoding="utf-8"), "local")
 
 
 if __name__ == "__main__":

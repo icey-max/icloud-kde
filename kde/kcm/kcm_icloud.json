@@ -1,0 +1,11 @@
+{
+  "KPlugin": {
+    "Name": "iCloud Drive",
+    "Description": "Configure iCloud Drive sync",
+    "Icon": "folder-cloud",
+    "FormFactors": [
+      "desktop"
+    ]
+  },
+  "X-KDE-Keywords": "icloud,drive,sync,apple,kwallet"
+}
