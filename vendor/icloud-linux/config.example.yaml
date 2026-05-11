@@ -1,0 +1,36 @@
+# Configuration file template (save as ~/.config/icloud-linux/config.yaml)
+---
+# iCloud credentials
+# NOTE: pyicloud requires your Apple ID account password (not app-specific password)
+username: "your_apple_id@example.com"
+password: "your_apple_id_password"
+
+# Cache directory
+cache_dir: "~/.cache/icloud-linux"
+
+# Cache warmup mode. "background" mounts after metadata sync and hydrates file contents
+# in the background. "lazy" downloads file contents only when first opened.
+warmup_mode: "background"
+
+# Conflict handling. "copy" preserves the local version as
+# "<name>.local-conflict-<timestamp>" if the same path changed remotely.
+conflict_mode: "copy"
+
+# Push local changes to iCloud every N seconds.
+upload_interval_seconds: 30
+
+# Refresh remote metadata from iCloud every N seconds.
+remote_refresh_interval_seconds: 300
+
+# Number of warmup workers. The default keeps iCloud downloads serialized because
+# parallel reads appear to trigger server-side auth/throttling failures.
+warmup_workers: 1
+
+# Persistent cookie/session directory used after one-time 2FA bootstrap
+cookie_dir: "~/.config/icloud-linux/cookies"
+
+# FUSE options
+fuse_options:
+  allow_other: false  # Set to true to allow other users to access the mount
+  ro: false           # Set to true for read-only access
+  nonempty: true      # Allow mounting over a non-empty directory

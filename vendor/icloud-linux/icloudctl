@@ -1,0 +1,275 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CONFIG_DIR="$HOME/.config/icloud-linux"
+STATE_DIR="$HOME/.local/state/icloud-linux"
+CACHE_DIR="$HOME/.cache/icloud-linux"
+SERVICE_DIR="$HOME/.config/systemd/user"
+CONFIG_FILE="$CONFIG_DIR/config.yaml"
+ENV_FILE="$CONFIG_DIR/icloud.env"
+SERVICE_FILE="$SERVICE_DIR/icloud.service"
+MOUNT_DIR_DEFAULT="$HOME/iCloud"
+
+need_cmd() { command -v "$1" >/dev/null 2>&1 || { echo "Missing required command: $1"; exit 1; }; }
+
+ensure_dirs() {
+  mkdir -p "$CONFIG_DIR" "$STATE_DIR" "$CACHE_DIR" "$SERVICE_DIR"
+}
+
+ensure_venv() {
+  if [[ ! -x "$REPO_DIR/.venv/bin/python" ]]; then
+    echo "Creating virtualenv..."
+    python3 -m venv "$REPO_DIR/.venv"
+  fi
+  "$REPO_DIR/.venv/bin/pip" install -q -r "$REPO_DIR/requirements.txt"
+}
+
+create_config_if_missing() {
+  if [[ ! -f "$CONFIG_FILE" ]]; then
+    cp "$REPO_DIR/config.example.yaml" "$CONFIG_FILE"
+    chmod 600 "$CONFIG_FILE"
+    echo "Created $CONFIG_FILE"
+  fi
+}
+
+write_service() {
+  local mount_dir="$1"
+  cat > "$SERVICE_FILE" <<EOF
+[Unit]
+Description=iCloud Linux FUSE filesystem (user)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStartPre=-/usr/bin/fusermount -uz $mount_dir
+ExecStop=-/usr/bin/fusermount -uz $mount_dir
+ExecStart=$REPO_DIR/.venv/bin/python $REPO_DIR/driver.py -f -c $CONFIG_FILE $mount_dir
+Restart=on-failure
+RestartSec=15
+TimeoutStopSec=10
+KillMode=control-group
+ExecStopPost=-/usr/bin/fusermount -uz $mount_dir
+Environment=ICLOUD_LOG_PATH=%h/.local/state/icloud-linux/icloud.log
+
+[Install]
+WantedBy=default.target
+EOF
+}
+
+write_env() {
+  local mount_dir="${1:-$MOUNT_DIR_DEFAULT}"
+  mkdir -p "$mount_dir"
+  cat > "$ENV_FILE" <<EOF
+ICLOUD_CONFIG=$CONFIG_FILE
+ICLOUD_MOUNT=$mount_dir
+EOF
+  chmod 600 "$ENV_FILE"
+}
+
+load_env_if_present() {
+  if [[ -f "$ENV_FILE" ]]; then
+    # shellcheck disable=SC1090
+    source "$ENV_FILE"
+  fi
+}
+
+cleanup_mountpoint() {
+  load_env_if_present
+  local mount_dir="${1:-${ICLOUD_MOUNT:-$MOUNT_DIR_DEFAULT}}"
+  mkdir -p "$mount_dir"
+
+  if mountpoint -q "$mount_dir"; then
+    echo "Cleaning mounted FUSE endpoint at $mount_dir"
+    fusermount -uz "$mount_dir" >/dev/null 2>&1 || fusermount -u "$mount_dir" >/dev/null 2>&1 || true
+    sleep 1
+  fi
+
+  if [[ -d "$mount_dir" ]] && ! ls "$mount_dir" >/dev/null 2>&1; then
+    echo "Cleaning stale FUSE transport endpoint at $mount_dir"
+    fusermount -uz "$mount_dir" >/dev/null 2>&1 || true
+    sleep 1
+  fi
+}
+
+cmd_init() {
+  local mount_dir="${1:-$MOUNT_DIR_DEFAULT}"
+  need_cmd systemctl
+  ensure_dirs
+  ensure_venv
+  create_config_if_missing
+
+  mkdir -p "$mount_dir"
+  if [[ ! -w "$mount_dir" ]]; then
+    local fallback="$HOME/iCloudDrive"
+    mkdir -p "$fallback"
+    if [[ -w "$fallback" ]]; then
+      echo "Mount dir not writable: $mount_dir"
+      echo "Using fallback mount dir: $fallback"
+      mount_dir="$fallback"
+    else
+      echo "Mount dir is not writable: $mount_dir"
+      echo "Fix with: sudo chown -R $USER:$USER '$mount_dir'"
+      exit 1
+    fi
+  fi
+
+  write_env "$mount_dir"
+  write_service "$mount_dir"
+  systemctl --user daemon-reload
+  systemctl --user enable icloud.service >/dev/null
+  echo "Initialized."
+  echo "- Config: $CONFIG_FILE"
+  echo "- Env:    $ENV_FILE"
+  echo "- Mount:  $mount_dir"
+  echo "Next: ./icloudctl auth"
+}
+
+cmd_configure() {
+  ensure_dirs
+  create_config_if_missing
+  local email="${1:-}"
+  if [[ -z "$email" ]]; then
+    read -r -p "Apple ID email: " email
+  fi
+  read -r -s -p "Apple ID password (input hidden): " password
+  echo
+  cat > "$CONFIG_FILE" <<EOF
+username: "$email"
+password: "$password"
+cache_dir: "$CACHE_DIR"
+warmup_mode: "background"
+conflict_mode: "copy"
+upload_interval_seconds: 30
+remote_refresh_interval_seconds: 300
+warmup_workers: 1
+cookie_dir: "$CONFIG_DIR/cookies"
+fuse_options:
+  allow_other: false
+  ro: false
+  nonempty: true
+EOF
+  chmod 600 "$CONFIG_FILE"
+  echo "Wrote $CONFIG_FILE"
+}
+
+cmd_auth() {
+  ensure_venv
+  create_config_if_missing
+  "$REPO_DIR/.venv/bin/python" "$REPO_DIR/auth.py" "$CONFIG_FILE"
+}
+
+cmd_start() { cleanup_mountpoint "${1:-}"; systemctl --user start icloud.service; systemctl --user --no-pager status icloud.service; }
+cmd_stop() { systemctl --user stop icloud.service >/dev/null 2>&1 || true; cleanup_mountpoint "${1:-}"; systemctl --user --no-pager status icloud.service || true; }
+cmd_restart() { systemctl --user stop icloud.service >/dev/null 2>&1 || true; cleanup_mountpoint "${1:-}"; systemctl --user start icloud.service; systemctl --user --no-pager status icloud.service; }
+cmd_status() { systemctl --user --no-pager status icloud.service; }
+cmd_logs() { journalctl --user -u icloud.service -f; }
+cmd_clear_cache() {
+  local was_active=0
+  systemctl --user is-active --quiet icloud.service && was_active=1 || true
+  systemctl --user stop icloud.service >/dev/null 2>&1 || true
+  rm -rf "$CACHE_DIR"
+  mkdir -p "$CACHE_DIR"
+  echo "Cleared persistent cache under $CACHE_DIR"
+  if [[ "$was_active" -eq 1 ]]; then
+    echo "Restarting service to rebuild cache..."
+    systemctl --user start icloud.service
+    systemctl --user --no-pager status icloud.service
+  else
+    echo "Service is stopped. Start it with './icloudctl start' to rebuild cache."
+  fi
+}
+
+cmd_uninstall() {
+  local purge="${1:-}"
+  systemctl --user stop icloud.service >/dev/null 2>&1 || true
+  systemctl --user disable icloud.service >/dev/null 2>&1 || true
+  rm -f "$SERVICE_FILE"
+  systemctl --user daemon-reload
+  systemctl --user reset-failed >/dev/null 2>&1 || true
+
+  if [[ "$purge" == "--purge" ]]; then
+    rm -f "$CONFIG_FILE" "$ENV_FILE"
+    rm -rf "$CONFIG_DIR/cookies" "$CACHE_DIR" "$STATE_DIR"
+    echo "Uninstalled and purged local config/cache/session data."
+  else
+    echo "Uninstalled service. Config/cookies/cache kept."
+    echo "Use './icloudctl uninstall --purge' to remove local data too."
+  fi
+}
+
+cmd_doctor() {
+  echo "== icloud-linux doctor =="
+  for c in python3 systemctl fusermount; do
+    if command -v "$c" >/dev/null 2>&1; then echo "OK: $c"; else echo "MISSING: $c"; fi
+  done
+  [[ -x "$REPO_DIR/.venv/bin/python" ]] && echo "OK: virtualenv" || echo "MISSING: virtualenv"
+  [[ -f "$CONFIG_FILE" ]] && echo "OK: config" || echo "MISSING: $CONFIG_FILE"
+  if [[ -f "$ENV_FILE" ]]; then
+    echo "OK: env"
+    # shellcheck disable=SC1090
+    source "$ENV_FILE"
+    if [[ -n "${ICLOUD_MOUNT:-}" ]]; then
+      [[ -w "$ICLOUD_MOUNT" ]] && echo "OK: mount writable ($ICLOUD_MOUNT)" || echo "WARN: mount not writable ($ICLOUD_MOUNT)"
+    fi
+  else
+    echo "MISSING: $ENV_FILE"
+  fi
+  systemctl --user --no-pager status icloud.service >/dev/null 2>&1 && echo "OK: service exists" || echo "WARN: service not initialized"
+}
+
+cmd_quickstart() {
+  local mount_dir="${1:-$MOUNT_DIR_DEFAULT}"
+  cmd_init "$mount_dir"
+  echo
+  echo "Now configure credentials:"
+  cmd_configure
+  echo
+  echo "Authenticate (2FA):"
+  cmd_auth
+  echo
+  echo "Starting service..."
+  cmd_start
+}
+
+usage() {
+  cat <<EOF
+Usage: ./icloudctl <command> [args]
+
+Commands:
+  quickstart [mount_dir]   One-command guided setup
+  init [mount_dir]         Initialize venv/config/service files
+  configure [email]        Write config.yaml with credentials
+  auth                     Run interactive 2FA bootstrap
+  clear-cache              Remove local mirror/state and rebuild on next start
+  start|stop|restart       Service control
+  status                   Show service status
+  logs                     Tail service logs
+  doctor                   Check local setup health
+  uninstall [--purge]      Remove service (optionally remove local data)
+EOF
+}
+
+main() {
+  local cmd="${1:-}"
+  shift || true
+  case "$cmd" in
+    quickstart) cmd_quickstart "$@" ;;
+    init) cmd_init "$@" ;;
+    configure) cmd_configure "$@" ;;
+    auth) cmd_auth ;;
+    clear-cache) cmd_clear_cache ;;
+    start) cmd_start ;;
+    stop) cmd_stop ;;
+    restart) cmd_restart ;;
+    status) cmd_status ;;
+    logs) cmd_logs ;;
+    doctor) cmd_doctor ;;
+    uninstall) cmd_uninstall "$@" ;;
+    ""|-h|--help|help) usage ;;
+    *) echo "Unknown command: $cmd"; usage; exit 1 ;;
+  esac
+}
+
+main "$@"
