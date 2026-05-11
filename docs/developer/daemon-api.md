@@ -25,12 +25,31 @@ clients can consume the same contract.
 - `GetConfig() -> a{sv}`
 - `SetSyncRoot(s path) -> a{sv}`
 
+## Auth and recovery methods
+
+- `GetAuthStatus() -> a{sv}`
+- `BeginSignIn(s apple_id, s password_secret_ref) -> a{sv}`
+- `SubmitTwoFactorCode(s code) -> a{sv}`
+- `ListTrustedDevices() -> aa{sv}`
+- `SendTwoStepCode(s device_id) -> a{sv}`
+- `SubmitTwoStepCode(s device_id, s code) -> a{sv}`
+- `RequestReauth() -> a{sv}`
+- `CollectLogs(s destination) -> a{sv}`
+- `RebuildCache(s confirm_token) -> a{sv}`
+- `RevealSyncRoot() -> a{sv}`
+
+`BeginSignIn` takes a password secret reference in the exact form
+`org.kde.ICloudDrive:<account_label>:apple_id_password`. It does not accept a
+raw password argument.
+
 ## Signals
 
 - `StatusChanged(a{sv})`
 - `ItemStateChanged(s path, a{sv} state)`
 - `ProgressChanged(a{sv})`
 - `ProblemRaised(a{sv})`
+- `AuthStateChanged(a{sv})`
+- `RecoveryActionCompleted(a{sv})`
 
 ## Service States
 

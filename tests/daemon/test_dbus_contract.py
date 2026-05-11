@@ -32,15 +32,25 @@ class DBusContractTests(unittest.TestCase):
         self.assertEqual(
             methods,
             {
+                "BeginSignIn",
+                "CollectLogs",
+                "GetAuthStatus",
                 "GetStatus",
                 "GetItemState",
-                "ListProblemItems",
-                "Pause",
-                "Resume",
-                "RequestSync",
-                "Hydrate",
                 "GetConfig",
+                "Hydrate",
+                "ListProblemItems",
+                "ListTrustedDevices",
+                "Pause",
+                "RebuildCache",
+                "RequestReauth",
+                "RequestSync",
+                "Resume",
+                "RevealSyncRoot",
+                "SendTwoStepCode",
                 "SetSyncRoot",
+                "SubmitTwoFactorCode",
+                "SubmitTwoStepCode",
             },
         )
 
@@ -55,8 +65,15 @@ class DBusContractTests(unittest.TestCase):
                 "ItemStateChanged",
                 "ProgressChanged",
                 "ProblemRaised",
+                "AuthStateChanged",
+                "RecoveryActionCompleted",
             },
         )
+
+    def test_dbus_xml_begin_sign_in_uses_secret_reference(self) -> None:
+        self.assertIn("BeginSignIn", dbus.INTROSPECTION_XML)
+        self.assertIn("password_secret_ref", dbus.INTROSPECTION_XML)
+        self.assertNotIn('name="password"', dbus.INTROSPECTION_XML)
 
     def test_dbus_xml_excludes_destructive_controls(self) -> None:
         names = dbus.INTROSPECTION_XML
