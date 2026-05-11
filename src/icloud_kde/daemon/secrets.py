@@ -97,32 +97,41 @@ class SubprocessSecretStore:
         return SecretRecord(ref=ref, stored=True)
 
     def lookup(self, ref: SecretRef) -> bytes | None:
-        result = self.runner(
-            self._args("lookup", ref),
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            check=False,
-        )
+        try:
+            result = self.runner(
+                self._args("lookup", ref),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=False,
+            )
+        except OSError:
+            return None
         if result.returncode != 0:
             return None
         return result.stdout
 
     def delete(self, ref: SecretRef) -> bool:
-        result = self.runner(
-            self._args("delete", ref),
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            check=False,
-        )
+        try:
+            result = self.runner(
+                self._args("delete", ref),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=False,
+            )
+        except OSError:
+            return False
         return result.returncode == 0
 
     def is_available(self) -> bool:
-        result = self.runner(
-            self.command + ["status"],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            check=False,
-        )
+        try:
+            result = self.runner(
+                self.command + ["status"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=False,
+            )
+        except OSError:
+            return False
         return result.returncode == 0
 
     def _args(self, command: str, ref: SecretRef) -> list[str]:

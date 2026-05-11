@@ -84,6 +84,17 @@ class SecretStoreTests(unittest.TestCase):
         commands = [call["args"][1] for call in runner.calls]
         self.assertEqual(commands, ["status", "lookup", "delete"])
 
+    def test_subprocess_secret_store_reports_unavailable_when_helper_missing(self) -> None:
+        def missing_runner(*args: object, **kwargs: object) -> subprocess.CompletedProcess[bytes]:
+            raise FileNotFoundError("icloud-kde-secret-tool")
+
+        store = SubprocessSecretStore(["icloud-kde-secret-tool"], runner=missing_runner)
+        ref = build_secret_ref("primary", SecretKind.TRUST_METADATA)
+
+        self.assertFalse(store.is_available())
+        self.assertIsNone(store.lookup(ref))
+        self.assertFalse(store.delete(ref))
+
     def test_daemon_config_serialization_contains_no_secret_fields(self) -> None:
         text = str(DaemonConfig().to_dict()).lower()
         blocked = ["username", "password", "token", "cookie", "session", "secret"]
