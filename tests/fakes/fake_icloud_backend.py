@@ -147,9 +147,13 @@ class FakeICloudDriveBackend(ICloudDriveBackendAdapter):
                     BackendErrorCode.CONTRACT_MISMATCH,
                     f"{replace_drivewsid} is not a file",
                 )
+            if item.parent_drivewsid != parent_drivewsid or item.name != name:
+                raise BackendError(
+                    BackendErrorCode.PRECONDITION_CONFLICT,
+                    "Replacement must keep the existing backend parent and name",
+                )
             updated = replace(
                 item,
-                name=name,
                 size=len(content),
                 mtime=self._now(),
                 remote_etag=self._new_etag(item.remote_drivewsid),
@@ -343,4 +347,3 @@ class FakeICloudDriveBackend(ICloudDriveBackendAdapter):
 
     def _join_path(self, parent_path: str, name: str) -> str:
         return "/" + name if parent_path == "/" else parent_path.rstrip("/") + "/" + name
-

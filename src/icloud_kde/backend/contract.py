@@ -137,7 +137,11 @@ class ICloudDriveBackendAdapter(Protocol):
         *,
         replace_drivewsid: str | None = None,
     ) -> UploadResult:
-        """Upload a new file or replace an existing backend item."""
+        """Upload a new file or replace an existing backend item.
+
+        Replacement updates file bytes for the identified item. Use rename_item
+        or move_item for name or parent changes.
+        """
 
     def create_folder(self, parent_drivewsid: str, name: str) -> BackendItem:
         """Create a folder under a backend parent."""
@@ -171,4 +175,3 @@ class ICloudDriveBackendAdapter(Protocol):
         remote_shareid: Mapping[str, Any] | str | None = None,
     ) -> Mapping[str, Any]:
         """Return shared-item metadata without exposing backend internals."""
-

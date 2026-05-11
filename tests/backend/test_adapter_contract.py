@@ -88,6 +88,35 @@ class AdapterContractTests(unittest.TestCase):
             self.backend.get_item_metadata(moved.remote_drivewsid)
         self.assertEqual(raised.exception.code, BackendErrorCode.NOT_FOUND)
 
+    def test_replace_requires_same_parent_and_name(self) -> None:
+        docs = self.backend.create_folder("root", "docs")
+        archive = self.backend.create_folder("root", "archive")
+        upload = self.backend.upload_file(docs.remote_drivewsid, "draft.txt", b"v1")
+
+        with self.assertRaises(BackendError) as wrong_name:
+            self.backend.upload_file(
+                docs.remote_drivewsid,
+                "final.txt",
+                b"v2",
+                replace_drivewsid=upload.item.remote_drivewsid,
+            )
+        with self.assertRaises(BackendError) as wrong_parent:
+            self.backend.upload_file(
+                archive.remote_drivewsid,
+                "draft.txt",
+                b"v2",
+                replace_drivewsid=upload.item.remote_drivewsid,
+            )
+
+        self.assertEqual(
+            wrong_name.exception.code,
+            BackendErrorCode.PRECONDITION_CONFLICT,
+        )
+        self.assertEqual(
+            wrong_parent.exception.code,
+            BackendErrorCode.PRECONDITION_CONFLICT,
+        )
+
     def test_shared_metadata_round_trip(self) -> None:
         file_item = self.backend.seed_file(
             "/shared/report.txt",
@@ -124,4 +153,3 @@ class AdapterContractTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
