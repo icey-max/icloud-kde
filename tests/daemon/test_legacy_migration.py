@@ -93,7 +93,12 @@ class LegacyMigrationTests(unittest.TestCase):
 
             backups = list(Path(tmp).glob("*.icloud-kde-migrated.bak"))
             self.assertEqual(backups, [result.backup_path])
-            self.assertIn("apple-password", backups[0].read_text(encoding="utf-8"))
+            backup = backups[0].read_text(encoding="utf-8")
+            self.assertIn("# migrated to KWallet/Secret Service by icloud-kde", backup)
+            self.assertIn("cache_dir", backup)
+            self.assertNotIn("username", backup)
+            self.assertNotIn("password", backup)
+            self.assertNotIn("cookie_dir", backup)
 
             replacement = config_path.read_text(encoding="utf-8")
             self.assertIn("# migrated to KWallet/Secret Service by icloud-kde", replacement)

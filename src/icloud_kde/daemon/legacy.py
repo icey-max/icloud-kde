@@ -112,6 +112,7 @@ def apply_legacy_migration(
 
     backup_path = _backup_path(legacy.path)
     legacy.path.rename(backup_path)
+    _write_redacted_config(legacy.values, backup_path)
     _chmod_user_rw(backup_path)
     _write_redacted_config(legacy.values, legacy.path)
     _chmod_user_rw(legacy.path)
