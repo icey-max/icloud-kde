@@ -131,6 +131,52 @@ class KCMStaticContractTests(unittest.TestCase):
         ]:
             self.assertIn(expected, recovery)
 
+    def test_daemon_client_cpp_contains_phase_three_dbus_methods(self) -> None:
+        source = self._read("kde/kcm/daemonclient.cpp")
+
+        for expected in [
+            "GetStatus",
+            "GetConfig",
+            "SetSyncRoot",
+            "GetAuthStatus",
+            "BeginSignIn",
+            "SubmitTwoFactorCode",
+            "ListTrustedDevices",
+            "SendTwoStepCode",
+            "SubmitTwoStepCode",
+            "RequestReauth",
+            "CollectLogs",
+            "RebuildCache",
+            "RevealSyncRoot",
+            "QDBusInterface",
+        ]:
+            self.assertIn(expected, source)
+
+    def test_sync_and_recovery_pages_wire_required_actions(self) -> None:
+        sync = self._read("kde/kcm/ui/SyncPage.qml")
+        recovery = self._read("kde/kcm/ui/RecoveryPage.qml")
+
+        for expected in [
+            "id: syncRoot",
+            "id: cacheLocation",
+            "id: startupBehavior",
+            "id: warmupMode",
+            "id: concurrency",
+            "id: pauseOnStartup",
+            "daemonClient.setSyncRoot(syncRoot.text)",
+        ]:
+            self.assertIn(expected, sync)
+        for expected in [
+            "requestReauth",
+            "revealSyncRoot",
+            "collectLogs",
+            "rebuildCache",
+            "rebuild-cache",
+            "id: rebuildCacheAcknowledgement",
+            "rebuildCacheAcknowledgement.checked",
+        ]:
+            self.assertIn(expected, recovery)
+
 
 if __name__ == "__main__":
     unittest.main()
