@@ -1,0 +1,15 @@
+{
+  "upstream_url": "https://github.com/IsmaeelAkram/icloud-linux.git",
+  "commit": "6ddd487d92662ace68b1e977d10e0cbc1fcc1b8c",
+  "default_branch": "master",
+  "imported_at": "2026-05-11",
+  "license": "NO LICENSE FILE FOUND IN UPSTREAM ROOT AT PINNED COMMIT",
+  "local_patch_policy": "Prefer project-owned adapter and tests outside vendor/; any direct vendor patch must be documented here with rationale.",
+  "layout_policy": "Preserve upstream layout exactly during Phase 1.",
+  "compatibility_notes": [
+    "Imported source is treated as the baseline for adapter contract and sync invariant tests.",
+    "Backend behavior depends on undocumented iCloud web endpoints through pyicloud-style calls.",
+    "Do not update this vendored source without refreshing contract tests and compatibility documentation."
+  ],
+  "local_patches": []
+}
