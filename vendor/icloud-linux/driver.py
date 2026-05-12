@@ -40,6 +40,7 @@ fuse.fuse_python_api = (0, 2)
 
 
 ROOT_DRIVEWSID = "FOLDER::com.apple.CloudDocs::root"
+BALOO_INDEXING_PROCESS_NAMES = {"baloo_file_extractor", "kfilemetadata"}
 
 
 class Stat(fuse.Stat):
@@ -1433,6 +1434,52 @@ class ICloudFS(Fuse):
             return
         self.logger.log(level, "file-op %s", op)
 
+    def _reader_process_name(self):
+        test_name = getattr(self, "_fuse_process_name_for_tests", None)
+        if test_name:
+            return os.path.basename(test_name)
+
+        get_context = getattr(fuse, "fuse_get_context", None)
+        if not callable(get_context):
+            return ""
+        try:
+            context = get_context()
+        except Exception:
+            return ""
+
+        pid = None
+        if isinstance(context, tuple) and len(context) >= 3:
+            pid = context[2]
+        else:
+            pid = getattr(context, "pid", None)
+        if not pid:
+            return ""
+
+        for proc_file in (f"/proc/{pid}/comm", f"/proc/{pid}/cmdline"):
+            try:
+                with open(proc_file, "rb") as handle:
+                    raw = handle.read(4096).replace(b"\x00", b" ").strip()
+            except OSError:
+                continue
+            if raw:
+                return os.path.basename(raw.decode("utf-8", errors="ignore").split()[0])
+        return ""
+
+    def _is_indexing_reader(self):
+        return self._reader_process_name() in BALOO_INDEXING_PROCESS_NAMES
+
+    def _is_clean_remote_placeholder(self, entry):
+        return (
+            entry
+            and entry["type"] == "file"
+            and not entry["hydrated"]
+            and not entry["dirty"]
+            and bool(entry.get("remote_drivewsid"))
+        )
+
+    def _defer_indexer_placeholder_hydration(self, entry):
+        return self._is_clean_remote_placeholder(entry) and self._is_indexing_reader()
+
     def shutdown(self):
         if self.sync_engine is not None:
             self.sync_engine.shutdown()
@@ -1572,6 +1619,9 @@ class ICloudFS(Fuse):
 
         entry = self.state.get_entry(path)
         if entry and entry["type"] == "file" and not entry["hydrated"] and not entry["dirty"]:
+            if self._defer_indexer_placeholder_hydration(entry):
+                self._log_file_op("open-placeholder-name-only", path, level=logging.DEBUG)
+                return 0
             try:
                 self.sync_engine.ensure_local_file(path)
             except Exception as exc:
@@ -1610,6 +1660,9 @@ class ICloudFS(Fuse):
 
         try:
             if not entry["hydrated"] and not entry["dirty"]:
+                if self._defer_indexer_placeholder_hydration(entry):
+                    self._log_file_op("read-placeholder-name-only", path, level=logging.DEBUG, size=size, offset=offset)
+                    return b""
                 self.sync_engine.ensure_local_file(path)
             self._log_file_op("read", path, level=logging.DEBUG, size=size, offset=offset)
             return self.mirror.read(path, size, offset)
