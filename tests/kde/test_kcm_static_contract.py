@@ -37,7 +37,9 @@ class KCMStaticContractTests(unittest.TestCase):
 
         for expected in [
             "refresh",
+            "connectAccount",
             "beginSignIn",
+            "passwordSecretRef",
             "submitTwoFactorCode",
             "listTrustedDevices",
             "sendTwoStepCode",
@@ -47,7 +49,6 @@ class KCMStaticContractTests(unittest.TestCase):
             "collectLogs",
             "rebuildCache",
             "revealSyncRoot",
-            "passwordSecretRef",
         ]:
             self.assertIn(expected, header)
 
@@ -73,16 +74,23 @@ class KCMStaticContractTests(unittest.TestCase):
             "Connect your Apple ID to choose a local sync folder and start syncing.",
             "Connect iCloud Drive",
             "iCloud needs attention. Review the account message, then reconnect or update recovery settings.",
+            "Apple ID password",
+            "echoMode: TextInput.Password",
+            "Qt.ImhSensitiveData | Qt.ImhNoPredictiveText | Qt.ImhNoAutoUppercase",
             "Two-factor verification code",
             "Trusted device",
             "Reconnect",
-            "beginSignIn",
+            "connectAccount(appleId.text, password.text)",
+            "password.clear()",
             "submitTwoFactorCode",
             "sendTwoStepCode",
             "submitTwoStepCode",
             "daemonClient.authStatus.message || \"\"",
+            "accountErrorVisible",
         ]:
             self.assertIn(expected, account)
+        self.assertNotIn("id: passwordSecretRef", account)
+        self.assertNotIn("org.kde.ICloudDrive:default:apple_id_password", account)
         for state in [
             "signed_out",
             "needs_password",
@@ -156,6 +164,12 @@ class KCMStaticContractTests(unittest.TestCase):
             "GetConfig",
             "SetSyncRoot",
             "GetAuthStatus",
+            "icloud-kde-secret-tool",
+            "QProcess",
+            "process.write(passwordBytes)",
+            "--account",
+            "--kind",
+            "apple_id_password",
             "BeginSignIn",
             "SubmitTwoFactorCode",
             "ListTrustedDevices",

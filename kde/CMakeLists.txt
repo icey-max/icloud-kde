@@ -1,2 +1,7 @@
 add_subdirectory(secret-tool)
+add_subdirectory(common)
+add_subdirectory(places)
 add_subdirectory(kcm)
+add_subdirectory(notifier)
+add_subdirectory(service-menu)
+add_subdirectory(baloo)

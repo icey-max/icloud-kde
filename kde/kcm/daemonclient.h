@@ -23,7 +23,9 @@ public:
     bool busy() const;
 
     Q_INVOKABLE void refresh();
+    Q_INVOKABLE void connectAccount(const QString &appleId, const QString &password);
     Q_INVOKABLE void beginSignIn(const QString &appleId, const QString &passwordSecretRef);
+    Q_INVOKABLE QString passwordSecretRef() const;
     Q_INVOKABLE void submitTwoFactorCode(const QString &code);
     Q_INVOKABLE QVariantList listTrustedDevices();
     Q_INVOKABLE void sendTwoStepCode(const QString &deviceId);
@@ -44,6 +46,7 @@ Q_SIGNALS:
 private:
     QVariantMap callMap(const QString &method, const QVariantList &args = {});
     QVariantList callList(const QString &method, const QVariantList &args = {});
+    void setAuthStatus(const QVariantMap &status);
     void setBusy(bool busy);
 
     QVariantMap m_authStatus;

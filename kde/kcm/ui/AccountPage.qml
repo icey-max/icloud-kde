@@ -8,6 +8,9 @@ Kirigami.ScrollablePage {
     title: "Account"
 
     required property var daemonClient
+    readonly property string authState: daemonClient.authStatus.state || "signed_out"
+    readonly property string authMessage: daemonClient.authStatus.message || ""
+    readonly property bool accountErrorVisible: authState === "error" || authState === "web_access_blocked" || authState === "account_blocked" || authState === "auth_required"
     readonly property var knownAuthStates: [
         "signed_out",
         "needs_password",
@@ -27,14 +30,14 @@ Kirigami.ScrollablePage {
         spacing: Kirigami.Units.largeSpacing
 
         Kirigami.Heading {
-            text: daemonClient.authStatus.state === "trusted" ? "iCloud Drive" : "iCloud Drive is not connected"
+            text: authState === "trusted" ? "iCloud Drive" : "iCloud Drive is not connected"
             level: 2
             wrapMode: Text.WordWrap
             Layout.fillWidth: true
         }
 
         Controls.Label {
-            text: daemonClient.authStatus.state === "error" ? "iCloud needs attention. Review the account message, then reconnect or update recovery settings." : "Connect your Apple ID to choose a local sync folder and start syncing."
+            text: authState === "error" ? "iCloud needs attention. Review the account message, then reconnect or update recovery settings." : "Connect your Apple ID to choose a local sync folder and start syncing."
             wrapMode: Text.WordWrap
             Layout.fillWidth: true
         }
@@ -46,26 +49,31 @@ Kirigami.ScrollablePage {
         }
 
         Controls.TextField {
-            id: passwordSecretRef
-            placeholderText: "org.kde.ICloudDrive:default:apple_id_password"
+            id: password
+            placeholderText: "Apple ID password"
+            echoMode: TextInput.Password
+            inputMethodHints: Qt.ImhSensitiveData | Qt.ImhNoPredictiveText | Qt.ImhNoAutoUppercase
             Layout.fillWidth: true
         }
 
         Controls.Button {
-            text: "Connect iCloud Drive"
+            text: daemonClient.busy ? "Connecting..." : "Connect iCloud Drive"
             icon.name: "network-connect"
-            enabled: appleId.text.length > 0 && passwordSecretRef.text.length > 0
-            onClicked: daemonClient.beginSignIn(appleId.text, passwordSecretRef.text)
+            enabled: !daemonClient.busy && appleId.text.trim().length > 0 && password.text.length > 0
+            onClicked: {
+                daemonClient.connectAccount(appleId.text, password.text)
+                password.clear()
+            }
         }
 
         Controls.Label {
             text: "Two-factor verification code"
-            visible: daemonClient.authStatus.state === "needs_2fa"
+            visible: authState === "needs_2fa"
             Layout.fillWidth: true
         }
 
         RowLayout {
-            visible: daemonClient.authStatus.state === "needs_2fa"
+            visible: authState === "needs_2fa"
             Layout.fillWidth: true
 
             Controls.TextField {
@@ -82,13 +90,13 @@ Kirigami.ScrollablePage {
 
         Controls.Label {
             text: "Trusted device"
-            visible: daemonClient.authStatus.state === "needs_2sa_device" || daemonClient.authStatus.state === "needs_2sa_code"
+            visible: authState === "needs_2sa_device" || authState === "needs_2sa_code"
             Layout.fillWidth: true
         }
 
         Controls.ComboBox {
             id: trustedDevice
-            visible: daemonClient.authStatus.state === "needs_2sa_device" || daemonClient.authStatus.state === "needs_2sa_code"
+            visible: authState === "needs_2sa_device" || authState === "needs_2sa_code"
             textRole: "label"
             valueRole: "device_id"
             model: daemonClient.authStatus.devices || []
@@ -96,7 +104,7 @@ Kirigami.ScrollablePage {
         }
 
         RowLayout {
-            visible: daemonClient.authStatus.state === "needs_2sa_device" || daemonClient.authStatus.state === "needs_2sa_code"
+            visible: authState === "needs_2sa_device" || authState === "needs_2sa_code"
             Layout.fillWidth: true
 
             Controls.Button {
@@ -117,8 +125,8 @@ Kirigami.ScrollablePage {
         }
 
         Kirigami.InlineMessage {
-            visible: daemonClient.authStatus.state === "web_access_blocked" || daemonClient.authStatus.state === "account_blocked" || daemonClient.authStatus.state === "auth_required"
-            text: daemonClient.authStatus.message || ""
+            visible: accountErrorVisible
+            text: authMessage
             type: Kirigami.MessageType.Error
             Layout.fillWidth: true
         }
@@ -126,7 +134,7 @@ Kirigami.ScrollablePage {
         Controls.Button {
             text: "Reconnect"
             icon.name: "view-refresh"
-            visible: daemonClient.authStatus.state === "auth_required"
+            visible: authState === "auth_required"
             onClicked: daemonClient.requestReauth()
         }
     }

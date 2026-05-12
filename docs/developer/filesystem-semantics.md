@@ -30,6 +30,22 @@ The inherited FUSE layer rejects non-regular special-file creation through
 `mknod()` with `ENOSYS`. Regular file and folder operations remain the supported
 v1 path for local applications.
 
+## Baloo Name-Only Placeholder Reads
+
+Remote-only placeholders are indexed by name only until they download. Normal
+user and application opens of a clean unhydrated file still hydrate the file
+through `ensure_local_file`.
+
+When a Baloo or KFileMetaData extraction process such as `baloo_file_extractor`
+or `kfilemetadata` opens or reads a clean remote-only placeholder, the FUSE
+layer does not hydrate it. `open()` succeeds and `read()` returns empty bytes,
+leaving the state entry unhydrated. This process-name check is an indexing
+behavior guard only, not an authorization boundary.
+
+Dirty files are not treated as safe remote-only placeholders. If local dirty
+content exists, extractor reads continue to return the local bytes rather than
+discarding or replacing them.
+
 ## Testing Matrix
 
 - Regular files are classified as supported.
@@ -37,3 +53,5 @@ v1 path for local applications.
 - Symlinks are classified with `lstat()` and are not followed.
 - FIFOs are classified as unsupported.
 - Unsupported scan results use POSIX-style paths beginning with `/`.
+- Baloo/KFileMetaData reads for clean remote-only placeholders do not hydrate
+  content.

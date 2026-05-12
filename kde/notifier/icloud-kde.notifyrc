@@ -1,0 +1,47 @@
+[Global]
+IconName=folder-cloud
+Name=iCloud Drive
+Comment=iCloud Drive desktop integration
+DesktopEntry=org.kde.icloud-drive.notifier.desktop
+
+[Event/auth_required]
+Name=iCloud Drive needs sign-in
+Comment=Reconnect to resume syncing your iCloud Drive files.
+Action=Popup
+Urgency=Critical
+
+[Event/account_blocked]
+Name=iCloud Drive access is blocked
+Comment=Account security or iCloud web access settings are blocking Linux access.
+Action=Popup
+Urgency=Critical
+
+[Event/conflict_created]
+Name=iCloud Drive conflict saved
+Comment=A conflict copy was saved. Review it before deleting either version.
+Action=Popup
+Urgency=Normal
+
+[Event/upload_stuck]
+Name=iCloud Drive upload is stuck
+Comment=An item has not uploaded after repeated attempts. Review sync status.
+Action=Popup
+Urgency=Normal
+
+[Event/sync_paused]
+Name=iCloud Drive sync paused
+Comment=Local changes stay in the folder and will sync after resume.
+Action=Popup
+Urgency=Low
+
+[Event/sync_resumed]
+Name=iCloud Drive sync resumed
+Comment=New changes will sync in the background.
+Action=Popup
+Urgency=Low
+
+[Event/hydration_completed]
+Name=iCloud Drive file is ready
+Comment=The file is available locally.
+Action=Popup
+Urgency=Low

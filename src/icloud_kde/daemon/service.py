@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from pathlib import Path
 from typing import Any, Mapping, Protocol
 
 from .auth import AuthController, FakeAuthController
@@ -70,6 +71,9 @@ class DaemonService:
         conflict_paths: set[str] | None = None,
         unsupported_paths: set[str] | None = None,
         syncing_paths: set[str] | None = None,
+        stuck_upload_paths: set[str] | None = None,
+        stuck_upload_metadata: Mapping[str, Mapping[str, Any]] | None = None,
+        foreground_hydration_paths: set[str] | None = None,
         auth_controller: AuthController | None = None,
         recovery_controller: RecoveryController | None = None,
     ) -> None:
@@ -84,6 +88,9 @@ class DaemonService:
         self.conflict_paths = conflict_paths or set()
         self.unsupported_paths = unsupported_paths or set()
         self.syncing_paths = syncing_paths or set()
+        self.stuck_upload_paths = stuck_upload_paths or set()
+        self.stuck_upload_metadata = dict(stuck_upload_metadata or {})
+        self.foreground_hydration_paths = foreground_hydration_paths or set()
 
     def get_status(self) -> dict[str, object]:
         lifecycle_status = self.lifecycle.status()
@@ -100,7 +107,7 @@ class DaemonService:
 
     def get_item_state(self, path: str) -> dict[str, object]:
         entry = self.repository.get_entry(path) if self.repository else None
-        return item_status_from_entry(
+        status = item_status_from_entry(
             entry,
             service_state=self.service_state,
             syncing_paths=self.syncing_paths,
@@ -108,12 +115,30 @@ class DaemonService:
             unsupported_paths=self.unsupported_paths,
             requested_path=path,
         ).to_dict()
+        if path in self.foreground_hydration_paths and status["state"] == ItemState.HYDRATED.value:
+            status["foreground_hydration"] = True
+            status["message"] = status["message"] or "File is available locally."
+        return status
 
     def list_problem_items(self) -> list[dict[str, object]]:
         problems: list[ProblemItem] = []
         if self.repository:
             for entry in self.repository.list_dirty_entries():
                 path = str(entry.get("path", ""))
+                if self._entry_is_stuck_upload(path, entry):
+                    problems.append(
+                        ProblemItem(
+                            path=path,
+                            kind=ProblemKind.UPLOAD_STUCK,
+                            severity=ProblemSeverity.WARNING,
+                            state=ItemState.DIRTY,
+                            message=(
+                                f"{_safe_problem_name(path)} has not uploaded after "
+                                "repeated attempts. Review sync status."
+                            ),
+                        )
+                    )
+                    continue
                 problems.append(
                     ProblemItem(
                         path=path,
@@ -123,6 +148,10 @@ class DaemonService:
                         message="Local change is waiting to sync.",
                     )
                 )
+
+        blocker = _service_blocker_problem(self.service_state)
+        if blocker is not None:
+            problems.append(blocker)
 
         lifecycle_status = self.lifecycle.status()
         if lifecycle_status.sync_root:
@@ -144,11 +173,19 @@ class DaemonService:
                     kind=ProblemKind.CONFLICT,
                     severity=ProblemSeverity.WARNING,
                     state=ItemState.CONFLICTED,
-                    message="Conflict copy requires review.",
+                    message="A conflict copy requires review before deleting either version.",
                 )
             )
 
         return [problem.to_dict() for problem in problems]
+
+    def _entry_is_stuck_upload(self, path: str, entry: Mapping[str, Any]) -> bool:
+        if path in self.stuck_upload_paths:
+            return True
+        if bool(entry.get("upload_stuck")) or bool(entry.get("stuck_upload")):
+            return True
+        metadata = self.stuck_upload_metadata.get(path, {})
+        return bool(metadata.get("stuck"))
 
     def pause(self) -> dict[str, object]:
         self.lifecycle.pause()
@@ -222,3 +259,38 @@ def _parse_password_secret_ref(value: str) -> SecretRef:
     if kind != SecretKind.APPLE_ID_PASSWORD.value:
         raise ValueError("password_secret_ref kind must be apple_id_password")
     return SecretRef(account_label=account_label, kind=SecretKind.APPLE_ID_PASSWORD)
+
+
+def _safe_problem_name(path: str) -> str:
+    name = Path(path).name or "This item"
+    if "@" in name:
+        return "This item"
+    return name
+
+
+def _service_blocker_problem(state: ServiceState) -> ProblemItem | None:
+    if state is ServiceState.AUTH_REQUIRED:
+        return ProblemItem(
+            path="",
+            kind=ProblemKind.AUTH_REQUIRED,
+            severity=ProblemSeverity.ERROR,
+            state=ItemState.AUTH_REQUIRED,
+            message="Reconnect iCloud Drive to resume syncing.",
+        )
+    if state is ServiceState.ACCOUNT_BLOCKED:
+        return ProblemItem(
+            path="",
+            kind=ProblemKind.ACCOUNT_BLOCKED,
+            severity=ProblemSeverity.ERROR,
+            state=ItemState.AUTH_REQUIRED,
+            message="Account security settings are blocking Linux access.",
+        )
+    if state is ServiceState.WEB_ACCESS_BLOCKED:
+        return ProblemItem(
+            path="",
+            kind=ProblemKind.WEB_ACCESS_BLOCKED,
+            severity=ProblemSeverity.ERROR,
+            state=ItemState.AUTH_REQUIRED,
+            message="iCloud web access settings are blocking Linux access.",
+        )
+    return None
