@@ -60,11 +60,12 @@ class BalooStaticContractTests(unittest.TestCase):
             self.assertIn(expected, combined)
 
     def test_baloo_privacy_exclusions_and_no_remote_search_claims(self) -> None:
+        developer = self._read("docs/developer/daemon-api.md")
+        baloo_section = developer.split("## Baloo indexing boundary", 1)[1]
         combined = "\n".join(
             [
                 self._read("kde/baloo/baloocontroller.cpp"),
-                self._read("docs/developer/daemon-api.md"),
-                self._read("tests/kde/test_baloo_static_contract.py"),
+                baloo_section,
             ]
         )
         lower = combined.lower()

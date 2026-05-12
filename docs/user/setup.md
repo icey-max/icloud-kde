@@ -58,6 +58,19 @@ next step: Compare the conflict copy before deleting either version.
 Conflict details preserve both versions. They do not resolve the conflict or
 remove either file.
 
+## Search indexing
+
+Hydrated files in your iCloud Drive folder can appear in KDE search.
+
+Remote-only placeholders are indexed by name only until they download.
+
+KDE file indexing is disabled for this folder. You can still browse files in Dolphin.
+
+Indexing status is unavailable. Check the sync folder in iCloud Drive settings.
+
+KDE search uses local hydrated content only. It does not search remote-only file
+contents before they download.
+
 ## Recover from common problems
 
 Use the Recovery page to request re-authentication, reveal the local folder,

@@ -139,3 +139,19 @@ sync root. It must not parse daemon logs, read SQLite state, import Python sync
 internals, or interpolate selected paths into shell commands. Conflict details
 are informational only: the desktop surface preserves both versions and does
 not resolve, overwrite, or remove either file.
+
+## Baloo indexing boundary
+
+Baloo integration consumes daemon `GetConfig` and `GetItemState` state through
+the same desktop D-Bus boundary as the notifier and Dolphin actions. It does not
+read SQLite state, daemon logs, backend cache contents, cookies, tokens, KWallet
+material, or Python sync internals as indexing inputs.
+
+Hydrated files in the configured sync root may be indexed by KDE search.
+Remote-only placeholders are name-only until they download. This depends on the
+filesystem placeholder policy: Baloo and KFileMetaData extractor reads for clean
+remote-only placeholders do not hydrate files or expose remote-only bytes.
+
+The desktop integration reports local indexing status only. It does not claim
+server-side search, and it does not search remote-only file contents before the
+file is hydrated locally.
