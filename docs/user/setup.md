@@ -12,12 +12,19 @@ The module is named `iCloud Drive`.
 
 ## Connect your Apple ID
 
-Use the Account page to connect an Apple ID through the daemon auth flow. If
-iCloud asks for two-factor or two-step verification, the settings module shows
-the required code or trusted-device step and sends the result to the daemon.
+Use the Account page to connect an Apple ID through the daemon auth flow. The
+password field is masked, and the settings module stores the password in
+KWallet before it asks the daemon to sign in. If iCloud asks for two-factor or
+two-step verification, the settings module shows the required code or
+trusted-device step and sends the result to the daemon.
 
 Credentials and session material are stored in KWallet or a compatible
 secret-service backend, not plaintext project config.
+
+The account flow requires the iCloud Drive daemon to own
+`org.kde.ICloudDrive` on the session bus. If the daemon is not installed or not
+running, the Account page reports that the daemon is unavailable instead of
+silently ignoring the connect action.
 
 ## Choose sync locations
 
