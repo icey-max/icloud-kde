@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=iCloud Drive
+Comment=iCloud Drive desktop integration
+Exec=icloud-kde-notifier
+Icon=folder-cloud
+Terminal=false
+Categories=Qt;KDE;Utility;

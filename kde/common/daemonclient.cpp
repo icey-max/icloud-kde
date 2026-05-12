@@ -218,7 +218,7 @@ void DaemonClient::applySnapshot(const Snapshot &snapshot, bool forceSignals)
 
     const bool serviceChanged = forceSignals || snapshot.serviceStatus != m_snapshot.serviceStatus;
     const bool authChanged = forceSignals || snapshot.authStatus != m_snapshot.authStatus;
-    const bool configChanged = forceSignals || snapshot.config != m_snapshot.config;
+    const bool configDidChange = forceSignals || snapshot.config != m_snapshot.config;
     const bool problemsChanged = forceSignals || snapshot.problemItems != m_snapshot.problemItems;
 
     m_snapshot = snapshot;
@@ -229,7 +229,7 @@ void DaemonClient::applySnapshot(const Snapshot &snapshot, bool forceSignals)
     if (authChanged) {
         Q_EMIT authStatusChanged(m_snapshot.authStatus);
     }
-    if (configChanged) {
+    if (configDidChange) {
         Q_EMIT configChanged(m_snapshot.config);
     }
     if (problemsChanged) {
