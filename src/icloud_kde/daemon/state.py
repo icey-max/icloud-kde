@@ -36,6 +36,7 @@ class ServiceState(str, Enum):
 class ProblemKind(str, Enum):
     CONFLICT = "conflict"
     DIRTY = "dirty"
+    UPLOAD_STUCK = "upload_stuck"
     AUTH_REQUIRED = "auth_required"
     ACCOUNT_BLOCKED = "account_blocked"
     WEB_ACCESS_BLOCKED = "web_access_blocked"
@@ -58,6 +59,7 @@ class ItemStatus:
     size: int = 0
     mtime: int = 0
     message: str = ""
+    foreground_hydration: bool = False
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -67,6 +69,7 @@ class ItemStatus:
             "size": self.size,
             "mtime": self.mtime,
             "message": self.message,
+            "foreground_hydration": self.foreground_hydration,
         }
 
 

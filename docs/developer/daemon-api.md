@@ -93,3 +93,28 @@ resolution are not part of this D-Bus contract.
 - Raw backend library objects must not cross this boundary.
 - State database rows must not be treated as public API.
 - Account auth blockers must stay distinguishable from generic offline state.
+
+## Phase 4 Desktop Events
+
+KDE notifier and file-manager clients derive desktop events only from the
+existing daemon D-Bus surface:
+
+- `GetStatus`
+- `GetAuthStatus`
+- `ListProblemItems`
+- `GetItemState`
+- `ProgressChanged`
+- `ProblemRaised`
+- safe controls: `Pause`, `Resume`, `RequestSync`, `Hydrate`,
+  `RequestReauth`, and `RevealSyncRoot`
+
+`ListProblemItems` can report `conflict`, `dirty`, `unsupported_file_type`,
+`auth_required`, `account_blocked`, `web_access_blocked`, and `upload_stuck`
+problem kinds. Upload-stuck state is daemon-owned state: KDE clients must not
+infer it from local file timestamps, logs, SQLite rows, or sync-engine private
+state.
+
+Desktop clients must treat these payloads as user-visible copy constraints:
+messages must not include Apple IDs, password references, cookies, tokens,
+secret references, or full home paths. Notification and tray actions remain
+non-destructive and map only to the safe controls listed above.
