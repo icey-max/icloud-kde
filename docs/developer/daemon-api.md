@@ -118,3 +118,24 @@ Desktop clients must treat these payloads as user-visible copy constraints:
 messages must not include Apple IDs, password references, cookies, tokens,
 secret references, or full home paths. Notification and tray actions remain
 non-destructive and map only to the safe controls listed above.
+
+## Dolphin and file manager integration
+
+Dolphin integration is daemon-backed and non-destructive. The Places helper
+reads only `GetConfig` and uses the returned `sync_root` to maintain a local
+folder entry named `iCloud Drive` through KDE Places APIs.
+
+Dolphin right-click actions use only these daemon calls after canonical sync-root validation has accepted every selected local file URL:
+
+- `GetStatus`
+- `GetItemState`
+- `ListProblemItems`
+- `Pause`
+- `Resume`
+- `RevealSyncRoot`
+
+The action plugin must return no iCloud Drive actions outside the configured
+sync root. It must not parse daemon logs, read SQLite state, import Python sync
+internals, or interpolate selected paths into shell commands. Conflict details
+are informational only: the desktop surface preserves both versions and does
+not resolve, overwrite, or remove either file.
