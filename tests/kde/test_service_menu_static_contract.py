@@ -125,6 +125,36 @@ class ServiceMenuStaticContractTests(unittest.TestCase):
         ]:
             self.assertNotIn(forbidden, combined)
 
+    def test_docs_describe_daemon_backed_dolphin_boundaries(self) -> None:
+        developer = self._read("docs/developer/daemon-api.md")
+        setup = self._read("docs/user/setup.md")
+
+        for expected in [
+            "## Dolphin and file manager integration",
+            "GetStatus",
+            "GetItemState",
+            "ListProblemItems",
+            "Pause",
+            "Resume",
+            "RevealSyncRoot",
+            "canonical sync-root validation",
+            "non-destructive",
+        ]:
+            self.assertIn(expected, developer)
+
+        for expected in [
+            "## Dolphin right-click actions",
+            "`Open iCloud Folder`",
+            "`Show iCloud Drive Status`",
+            "`Pause iCloud Drive Sync`",
+            "`Resume iCloud Drive Sync`",
+            "`Show Conflict Details`",
+            "Compare the conflict copy before deleting either version.",
+            "outside-root service actions are absent",
+            "conflicted items show conflict actions",
+        ]:
+            self.assertIn(expected, setup)
+
 
 if __name__ == "__main__":
     unittest.main()

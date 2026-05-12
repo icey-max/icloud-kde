@@ -80,6 +80,21 @@ class PlacesStaticContractTests(unittest.TestCase):
 
         self.assertNotIn("user-places.xbel", combined)
         self.assertNotIn("icloud:/", combined)
+        for forbidden in ["sqlite", "journalctl", "pyicloud"]:
+            self.assertNotIn(forbidden, combined.lower())
+
+    def test_user_docs_describe_places_and_desktop_smoke_checks(self) -> None:
+        setup = self._read("docs/user/setup.md")
+
+        for expected in [
+            "## Dolphin Places entry",
+            "The Places entry is named `iCloud Drive`",
+            "opens the local sync root",
+            "## Phase 4 desktop smoke checks",
+            "Places entry opens the local sync root",
+            "kcmshell6 kcm_icloud",
+        ]:
+            self.assertIn(expected, setup)
 
 
 if __name__ == "__main__":
