@@ -13,6 +13,7 @@ if str(SRC) not in sys.path:
 
 from icloud_kde.daemon.state import (  # noqa: E402
     ItemState,
+    ProblemKind,
     ServiceState,
     item_state_from_entry,
 )
@@ -69,6 +70,11 @@ class DaemonStateTests(unittest.TestCase):
 
         self.assertEqual(conflicted, ItemState.CONFLICTED)
         self.assertEqual(unsupported, ItemState.UNSUPPORTED)
+
+    def test_problem_kind_upload_stuck_preserves_existing_string_enums(self) -> None:
+        self.assertEqual(ProblemKind.CONFLICT.value, "conflict")
+        self.assertEqual(ProblemKind.DIRTY.value, "dirty")
+        self.assertEqual(ProblemKind.UPLOAD_STUCK.value, "upload_stuck")
 
 
 if __name__ == "__main__":
