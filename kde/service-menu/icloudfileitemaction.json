@@ -1,0 +1,14 @@
+{
+    "KPlugin": {
+        "Description": "Dolphin actions for the configured iCloud Drive sync folder",
+        "Icon": "folder-cloud",
+        "MimeType": [
+            "application/octet-stream",
+            "inode/directory"
+        ],
+        "Name": "iCloud Drive",
+        "ServiceTypes": [
+            "KFileItemAction/Plugin"
+        ]
+    }
+}
